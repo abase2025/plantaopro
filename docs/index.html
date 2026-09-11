@@ -21,6 +21,9 @@
           <span id="user-nome"></span>
           <small id="user-perfil"></small>
         </div>
+        <a href="#/notifications" id="notif-bell" title="Notificações" style="position:relative;margin-right:8px;color:var(--muted);text-decoration:none">
+          🔔 <span id="notif-badge" class="hidden" style="position:absolute;top:-4px;right:-10px;background:var(--danger);color:#fff;font-size:10px;border-radius:999px;padding:1px 5px;min-width:14px;text-align:center"></span>
+        </a>
         <button id="btn-logout" class="btn btn-ghost btn-sm" title="Sair">Sair</button>
       </div>
     </div>
@@ -48,6 +51,8 @@
 <script src="js/views/financeiro.js"></script>
 <script src="js/views/proximos.js"></script>
 <script src="js/views/cadastro.js"></script>
+<script src="js/views/notifications.js"></script>
+<script src="js/notifications-bell.js"></script>
 <script src="js/views/masks.js"></script>
 <script src="js/router.js"></script>
 <script src="js/footer.js"></script>

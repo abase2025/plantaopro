@@ -217,6 +217,71 @@
     const guard = exigir();
     if (guard) return guard;
 
+    /* === NOTIFICAÇÕES (push + WhatsApp) === */
+    if (P(1) === 'notifications' && P(2) === 'status' && m === 'GET') {
+      return ok(200, {
+        canais: {
+          email: (window.PPLOCAL_EMAIL_PROVIDER || 'stub'),
+          push: (window.PPVAPID_PUBLIC ? 'web-push' : 'stub'),
+          whatsapp: (window.PPWA_CONFIGURED ? 'meta-cloud-api' : 'stub')
+        },
+        lembretesOffsets: [-24, -3, 0],
+        whatsappStub: '/tmp/plantaopro-whatsapp-dev.log'
+      });
+    }
+    if (P(1) === 'notifications' && P(2) === 'preferences' && m === 'GET') {
+      db.whatsapp_optin = db.whatsapp_optin || [];
+      const opt = db.whatsapp_optin.find(o => o.usuario_id === u.id) || null;
+      return ok(200, { preferencias: opt });
+    }
+    if (P(1) === 'notifications' && P(2) === 'preferences' && m === 'POST') {
+      let tel = String(b.telefone || '').trim();
+      let e164 = tel.startsWith('+') ? tel : ('+55' + tel.replace(/\D/g, ''));
+      if (!/^\+[1-9][0-9]{6,14}$/.test(e164)) return err(400, 'Telefone inválido. Use DDI, ex.: +5511999998888.');
+      db.whatsapp_optin = db.whatsapp_optin || [];
+      const idx = db.whatsapp_optin.findIndex(o => o.usuario_id === u.id);
+      const rec = {
+        telefone_e164: e164,
+        aceitar_lembretes: b.aceitar_lembretes !== false,
+        aceitar_alertas: b.aceitar_alertas !== false,
+        template_lang: b.template_lang || 'pt_BR',
+        atualizado_em: new Date().toISOString()
+      };
+      db.seq = db.seq || {};
+      if (idx >= 0) db.whatsapp_optin[idx] = { ...db.whatsapp_optin[idx], ...rec };
+      else db.whatsapp_optin.push({ id: (db.seq.whatsapp_optin = (db.seq.whatsapp_optin || 0) + 1), usuario_id: u.id, criado_em: new Date().toISOString(), ...rec });
+      save(db);
+      return ok(201, { ok: true, telefone_e164: e164 });
+    }
+    if (P(1) === 'notifications' && P(2) === 'recentes' && m === 'GET') {
+      const qs = (path.split('?')[1] || '');
+      const limit = Math.min(parseInt((qs.match(/limit=(\d+)/) || [])[1]) || 50, 200);
+      db.notifications_log = db.notifications_log || [];
+      const out = db.notifications_log.filter(n => {
+        const l = (db.plantoes_lembretes || []).find(x => x.id === n.lembrete_id);
+        if (!l) return false;
+        const p = (db.plantoes || []).find(x => x.id === l.plantao_id);
+        return p && p.medicoId === u.id;
+      }).sort((a, b) => (b.enviado_em || '').localeCompare(a.enviado_em || '')).slice(0, limit);
+      return ok(200, { notificacoes: out, unread: out.length });
+    }
+    if (P(1) === 'notifications' && P(2) === 'test' && m === 'POST') {
+      if (!['gestor', 'medico_gestor'].includes(u.perfil)) return err(403, 'Apenas gestor / médico gestor.');
+      const opt = (db.whatsapp_optin || []).find(o => o.usuario_id === u.id);
+      if (!opt) return err(400, 'Faça opt-in antes.');
+      const line = JSON.stringify({ ts: new Date().toISOString(), canal: 'whatsapp', to: opt.telefone_e164, template: 'plantaopro_lembrete_inicio', params: [u.nome, 'hospital de teste', new Date().toISOString().slice(0, 10)] });
+      try { localStorage.setItem('pp_wa_stub_last', line); } catch {}
+      db.notifications_log = db.notifications_log || [];
+      db.seq = db.seq || {};
+      db.notifications_log.push({
+        id: (db.seq.notif_log = (db.seq.notif_log || 0) + 1),
+        lembrete_id: 0, canal: 'whatsapp', destinatario: opt.telefone_e164, status: 'enviado',
+        provider_id: 'stub-' + Date.now(), enviado_em: new Date().toISOString()
+      });
+      save(db);
+      return ok(200, { status: 'enviado', stub: true });
+    }
+
     if (P(1) === 'me' && m === 'GET') return ok(200, { usuario: publicar(u) });
     if (P(1) === 'setores' && m === 'GET') return ok(200, { setores: db.setores });
 
