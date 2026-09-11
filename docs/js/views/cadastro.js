@@ -10,6 +10,13 @@ async function renderCadastro(el) {
   if (!user) { location.hash = '#/login'; return; }
   const ehGestor = ['gestor', 'medico_gestor'].includes(user.perfil);
 
+  // 🔒 RBAC: plantonista NÃO pode cadastrar plantão
+  if (!Permissions.can('cadastrarPlantao', user)) {
+    location.hash = '#/dashboard';
+    UI.toast('⛔ Seu perfil (' + (Permissions.matrix(Permissions.perfilDoUsuario(user))?.label || user.perfil) + ') não pode cadastrar plantões.', 'err');
+    return;
+  }
+
   // Buscar escalas e setores em paralelo
   const [escalasData, setoresData] = await Promise.all([
     API.get('/api/escalas').catch(() => ({ escalas: [] })),

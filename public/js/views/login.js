@@ -1,5 +1,7 @@
 /* ============================================================
    PlantãoPro — View: Login / Cadastro / Recuperar senha
+   Usa Permissions.canRoute para decidir para onde redirecionar.
+   Lista 3 personas (admin / médico / plantonista) no demo box.
    ============================================================ */
 async function renderLogin(el) {
   el.innerHTML = '';
@@ -9,7 +11,7 @@ async function renderLogin(el) {
   body.appendChild(UI.h('div', { class: 'auth-card' },
     UI.h('div', { class: 'auth-logo' }, '🏥'),
     UI.h('div', { class: 'auth-title' }, 'Plantão', UI.h('span', null, 'Pro')),
-    UI.h('div', { class: 'auth-sub' }, 'Gestão de escalas e plantões médicos'),
+    UI.h('div', { class: 'auth-sub' }, 'Gestão de escalas e plantões médicos — RBAC cliente-side (3 perfis)'),
 
     mountFormLogin(body)
   ));
@@ -38,13 +40,27 @@ function mountFormLogin(container) {
     const btn = form.querySelector('button[type=submit]');
     btn.disabled = true;
     try {
+      // Modo local: autentica direto na lista de usuários persistida
+      const modoLocal = window.location.protocol === 'file:' || window.API_MODE === 'local';
+      if (modoLocal) {
+        const KEY = 'pp_users_v1';
+        const usuarios = JSON.parse(localStorage.getItem(KEY) || '[]');
+        const u = usuarios.find(x => (x.email || '').toLowerCase() === (email.value || '').toLowerCase());
+        if (!u || u.senha !== senha.value) throw new Error('E-mail ou senha inválidos.');
+        const perfil = Permissions.perfilDoUsuario(u) || u.perfil;
+        const publico = { id: u.id, nome: u.nome, email: u.email, perfil };
+        API.setUser(publico);
+        UI.toast('Bem-vindo(a), ' + publico.nome.split(' ')[0] + ' 👋 (perfil: ' + perfil + ')');
+        location.hash = '#/dashboard';
+        return;
+      }
       const data = await API.post('/api/auth/login', { email: email.value, senha: senha.value });
       API.setToken(data.token);
       API.setUser(data.usuario);
       UI.toast('Bem-vindo(a), ' + data.usuario.nome.split(' ')[0] + '! 👋');
       location.hash = '#/dashboard';
     } catch (err) {
-      UI.toast(err.message, 'err');
+      UI.toast(err.message || 'Erro ao entrar', 'err');
       btn.disabled = false;
     }
   });
@@ -56,28 +72,24 @@ function mountFormLogin(container) {
 
 function mountDemoBox(container) {
   const demos = [
-    ['Gestor', 'gestor@plantaopro.com', 'demo123'],
-    ['Médico Gestor', 'medgestor@plantaopro.com', 'demo123'],
-    ['Médico', 'medico@plantaopro.com', 'demo123']
+    { label: 'Admin',       email: 'admin@plantaopro.com',        perfil: 'admin' },
+    { label: 'Médico',      email: 'medico@plantaopro.com',       perfil: 'medico' },
+    { label: 'Plantonista', email: 'plantonista@plantaopro.com',  perfil: 'plantonista' }
   ];
+  const uid = (e) => demos.findIndex(d => d.email === e);
   return UI.h('div', { class: 'demo-box' },
-    UI.h('small', null, '🔑 Acessos de demonstração (1 clique):'),
-    UI.h('div', { class: 'demo-grid' }, demos.map(([label, email, pass]) =>
+    UI.h('small', null, '🔑 Perfis de demonstração (1 clique):'),
+    UI.h('div', { class: 'demo-grid' }, demos.map((d) =>
       UI.h('button', {
-        class: 'demo-chip', type: 'button',
+        class: 'demo-chip demo-chip-' + d.perfil,
+        type: 'button',
+        title: 'Perfil: ' + d.perfil + ' · senha: demo123',
         onclick: () => {
-          const f = container.querySelector('#auth-form');
-          if (f) {
-            f.querySelector('input[type=email]').value = email;
-            f.querySelector('input[type=password]').value = pass;
-          } else {
-            mountFormLogin(container);
-            const f2 = container.querySelector('#auth-form');
-            f2.querySelector('input[type=email]').value = email;
-            f2.querySelector('input[type=password]').value = pass;
-          }
+          const f = container.querySelector('#auth-form') || (mountFormLogin(container), container.querySelector('#auth-form'));
+          f.querySelector('input[type=email]').value    = d.email;
+          f.querySelector('input[type=password]').value = 'demo123';
         }
-      }, label)
+      }, d.label + ' — ' + d.perfil)
     ))
   );
 }
@@ -101,9 +113,9 @@ function mountFormCadastro(container) {
   const senha = UI.h('input', { type: 'password', placeholder: 'Mínimo 6 caracteres', required: true });
   const confirm = UI.h('input', { type: 'password', placeholder: 'Repita a senha', required: true });
   const perfil = UI.h('select', null,
-    UI.h('option', { value: 'medico' }, 'Médico'),
-    UI.h('option', { value: 'medico_gestor' }, 'Médico Gestor'),
-    UI.h('option', { value: 'gestor' }, 'Gestor')
+    UI.h('option', { value: 'plantonista' }, 'Plantonista (somente leitura)'),
+    UI.h('option', { value: 'medico', selected: true }, 'Médico'),
+    UI.h('option', { value: 'admin' }, 'Administrador')
   );
   const setor = UI.h('select', null, UI.h('option', { value: '' }, 'Sem setor (definido pelo gestor)'));
 
@@ -126,7 +138,8 @@ function mountFormCadastro(container) {
     UI.h('div', { class: 'form-actions' },
       UI.h('button', { type: 'submit', class: 'btn btn-primary', style: 'flex:1' }, 'Criar conta')
     ),
-    UI.h('div', { class: 'auth-link' }, 'Já tem conta? ', UI.h('a', { onclick: () => renderLogin(container.closest('.auth-wrap') || document.getElementById('view')) }, 'Entrar'))
+    UI.h('div', { class: 'auth-link' }, 'Já tem conta? ',
+      UI.h('a', { onclick: () => renderLogin(container.closest('.auth-wrap') || document.getElementById('view')) }, 'Entrar'))
   );
 
   form.addEventListener('submit', async (e) => {
@@ -144,7 +157,7 @@ function mountFormCadastro(container) {
       UI.toast('Conta criada! Bem-vindo(a) 🎉');
       location.hash = '#/dashboard';
     } catch (err) {
-      UI.toast(err.message, 'err');
+      UI.toast(err.message || 'Erro ao criar conta', 'err');
       btn.disabled = false;
     }
   });
@@ -172,7 +185,7 @@ function mountFormRecuperar(container) {
       UI.toast('Instruções enviadas (simulado no protótipo).', 'ok');
       renderLogin(container.closest('.auth-wrap') || document.getElementById('view'));
     } catch (err) {
-      UI.toast(err.message, 'err');
+      UI.toast(err.message || 'Erro', 'err');
     }
   });
 

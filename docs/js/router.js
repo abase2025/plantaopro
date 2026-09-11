@@ -1,35 +1,40 @@
 /* ============================================================
-   PlantãoPro — Roteador SPA (hash) + navegação + guardas
+   PlantãoPro — Roteador SPA (hash) + RBAC centralizado
+   Toda checagem passa por Permissions (public/js/permissions.js).
    ============================================================ */
 const ROUTES = {
-  '/login':    { render: renderLogin,    public: true, roles: [] },
-  '/dashboard':{ render: renderDashboard, roles: ['gestor', 'medico_gestor', 'medico'] },
-  '/escalas':  { render: renderEscalas,   roles: ['gestor', 'medico_gestor', 'medico'] },
-  '/ofertas':  { render: renderOfertas,   roles: ['gestor', 'medico_gestor', 'medico'] },
-  '/checkin':  { render: renderCheckin,   roles: ['medico'] },
-  '/horas':    { render: renderHoras,     roles: ['gestor', 'medico_gestor', 'medico'] },
-  '/financeiro':{ render: renderFinanceiro, roles: ['gestor', 'medico_gestor', 'medico'] },
-  '/equipe':   { render: renderEquipe,    roles: ['gestor', 'medico_gestor'] },
-  '/chat':     { render: renderChat,      roles: ['gestor', 'medico_gestor', 'medico'] },
-  '/proximos': { render: renderProximos,  roles: ['gestor', 'medico_gestor', 'medico'] },
-  '/cadastro': { render: renderCadastro,  roles: ['gestor', 'medico_gestor', 'medico'] }
+  '/login':       { render: renderLogin,       public: true,  routeKey: 'login' },
+  '/dashboard':   { render: renderDashboard,   routeKey: 'dashboard' },
+  '/escalas':     { render: renderEscalas,     routeKey: 'escalas' },
+  '/ofertas':     { render: renderOfertas,     routeKey: 'ofertas' },
+  '/checkin':     { render: renderCheckin,     routeKey: 'checkin' },
+  '/horas':       { render: renderHoras,       routeKey: 'horas' },
+  '/financeiro':  { render: renderFinanceiro,  routeKey: 'financeiro' },
+  '/equipe':      { render: renderEquipe,      routeKey: 'equipe' },
+  '/chat':        { render: renderChat,        routeKey: 'chat' },
+  '/proximos':    { render: renderProximos,    routeKey: 'proximos' },
+  '/cadastro':    { render: renderCadastro,    routeKey: 'cadastro' },
+  '/calendario':  { render: renderProximos,    routeKey: 'calendario' },
+  '/admin':       { render: renderDashboard,   routeKey: 'admin' }
 };
 
 const NAV_ITEMS = [
-  { path: '/dashboard', label: '🏠 Início', roles: ['gestor', 'medico_gestor', 'medico'] },
-  { path: '/cadastro',  label: '➕ Cadastrar', roles: ['gestor', 'medico_gestor', 'medico'] },
-  { path: '/proximos',  label: '📅 Próximos', roles: ['gestor', 'medico_gestor', 'medico'] },
-  { path: '/escalas',   label: '📋 Escalas', roles: ['gestor', 'medico_gestor', 'medico'] },
-  { path: '/ofertas',   label: '💼 Ofertas', roles: ['gestor', 'medico_gestor', 'medico'] },
-  { path: '/checkin',   label: '📍 Check-in', roles: ['medico'] },
-  { path: '/horas',     label: '⏱️ Horas', roles: ['gestor', 'medico_gestor', 'medico'] },
-  { path: '/financeiro',label: '💰 Financeiro', roles: ['gestor', 'medico_gestor', 'medico'] },
-  { path: '/equipe',    label: '👥 Equipe', roles: ['gestor', 'medico_gestor'] },
-  { path: '/chat',      label: '💬 Chat', roles: ['gestor', 'medico_gestor', 'medico'] }
+  { path: '/dashboard',  label: '🏠 Início',     routeKey: 'dashboard' },
+  { path: '/cadastro',   label: '➕ Cadastrar',  routeKey: 'cadastro' },
+  { path: '/proximos',   label: '📅 Próximos',   routeKey: 'proximos' },
+  { path: '/calendario', label: '🗓️ Calendário', routeKey: 'calendario' },
+  { path: '/escalas',    label: '📋 Escalas',    routeKey: 'escalas' },
+  { path: '/ofertas',    label: '💼 Ofertas',    routeKey: 'ofertas' },
+  { path: '/checkin',    label: '✅ Check-in',   routeKey: 'checkin' },
+  { path: '/horas',      label: '⏱️ Horas',      routeKey: 'horas' },
+  { path: '/financeiro', label: '💰 Financeiro', routeKey: 'financeiro' },
+  { path: '/equipe',     label: '👥 Equipe',     routeKey: 'equipe' },
+  { path: '/chat',       label: '💬 Chat',       routeKey: 'chat' },
+  { path: '/admin',      label: '🛡️ Admin',      routeKey: 'admin' }
 ];
 
 function hashAtual() {
-  return location.hash.replace(/^#/, '') || '/dashboard';
+  return (location.hash || '#/dashboard').replace(/^#/, '') || '/dashboard';
 }
 
 function renderNav() {
@@ -37,9 +42,13 @@ function renderNav() {
   const user = API.getUser();
   nav.innerHTML = '';
   if (!user) return;
+  const path = hashAtual().split('?')[0];
   for (const item of NAV_ITEMS) {
-    if (!item.roles.includes(user.perfil)) continue;
-    const a = UI.h('a', { href: '#' + item.path, class: hashAtual().split('?')[0] === item.path ? 'active' : '' }, item.label);
+    if (!Permissions.canRoute(item.routeKey, user)) continue;
+    const a = UI.h('a', {
+      href: '#' + item.path,
+      class: path === item.path ? 'active' : ''
+    }, item.label);
     nav.appendChild(a);
   }
 }
@@ -49,13 +58,17 @@ function atualizarTopbar() {
   const user = API.getUser();
   if (!user) {
     topbar.classList.add('hidden');
-    document.getElementById('user-nome').textContent = '';
-    document.getElementById('user-perfil').textContent = '';
     return;
   }
   topbar.classList.remove('hidden');
   document.getElementById('user-nome').textContent = user.nome;
-  document.getElementById('user-perfil').textContent = UI.perfilLabel(user.perfil);
+  const perfil = Permissions.perfilDoUsuario(user);
+  const label  = (Permissions.MATRIX[perfil] || {}).label || UI.perfilLabel(user.perfil);
+  const tag    = document.getElementById('user-perfil');
+  if (tag) {
+    tag.textContent = label;
+    tag.style.color = (Permissions.MATRIX[perfil] || {}).cor || '';
+  }
   renderNav();
 }
 
@@ -64,17 +77,20 @@ async function rotear() {
   const path = hashAtual().split('?')[0];
   const rota = ROUTES[path] || ROUTES['/dashboard'];
 
-  // Guarda de autenticação
+  // 1) guarda de sessão
   if (!rota.public && !user) {
     location.hash = '#/login';
     return;
   }
+  // 2) logado não deve ficar em rota pública (login)
   if (rota.public && user) {
     location.hash = '#/dashboard';
     return;
   }
-  // Guarda de perfil
-  if (user && rota.roles.length && !rota.roles.includes(user.perfil)) {
+  // 3) guarda de RBAC: rota exige permissão do perfil
+  if (!rota.public && rota.routeKey && !Permissions.canRoute(rota.routeKey, user)) {
+    UI?.toast?.('⛔ Seu perfil (' + (Permissions.matrix(Permissions.perfilDoUsuario(user))?.label || '—') +
+               ') não pode acessar ' + path + '.', 'err');
     location.hash = '#/dashboard';
     return;
   }
@@ -86,7 +102,7 @@ async function rotear() {
     await rota.render(view);
   } catch (err) {
     view.innerHTML = '';
-    view.appendChild(UI.emptyMsg('⚠️', 'Erro ao carregar a página: ' + err.message));
+    view.appendChild(UI.emptyMsg('⚠️', 'Erro ao carregar a página: ' + (err?.message || err)));
   } finally {
     UI.loader(false);
   }
