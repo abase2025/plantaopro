@@ -1,0 +1,42 @@
+/* ============================================================
+   PlantãoPro — Footer fixo, discreto, responsivo, sem sobrepor botões
+   ============================================================ */
+.pp-footer {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 30;
+  background: rgba(243, 247, 246, 0.94);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-top: 1px solid var(--border, #dfe8e6);
+  padding: 6px 10px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted, #6b7c78);
+  pointer-events: auto;
+  user-select: none;
+  padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+}
+.pp-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+.pp-footer a {
+  color: var(--primary-dark, #0a5f50);
+  text-decoration: none;
+  font-weight: 600;
+}
+.pp-footer a:hover { text-decoration: underline; }
+.pp-footer-sep { color: var(--border, #dfe8e6); margin: 0 2px; }
+
+/* Mobile: fonte menor */
+@media (max-width: 640px) {
+  .pp-footer { font-size: 10px; padding: 5px 8px; }
+  .pp-footer-inner { gap: 3px; }
+}
