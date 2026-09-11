@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PlantãoPro — Gestão de Escalas e Plantões Médicos</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/footer.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏥</text></svg>" />
+  <!-- jsPDF para geração de relatório em PDF (client-side) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+  <header id="topbar" class="hidden">
+    <div class="topbar-inner">
+      <a href="#/dashboard" class="logo"><span class="logo-icon">🏥</span> Plantão<strong>Pro</strong></a>
+      <nav id="main-nav" class="main-nav"></nav>
+      <div class="user-box">
+        <div class="user-info">
+          <span id="user-nome"></span>
+          <small id="user-perfil"></small>
+        </div>
+        <button id="btn-logout" class="btn btn-ghost btn-sm" title="Sair">Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="view" class="view"></main>
+
+  <div id="modal-root"></div>
+  <div id="toast-root"></div>
+  <div id="loader" class="loader hidden"><div class="spinner"></div></div>
+
+  <script src="js/db-local.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/views/login.js"></script>
+  <script src="js/views/dashboard.js"></script>
+  <script src="js/views/escalas.js"></script>
+  <script src="js/views/ofertas.js"></script>
+  <script src="js/views/checkin.js"></script>
+  <script src="js/views/horas.js"></script>
+  <script src="js/views/equipe.js"></script>
+  <script src="js/views/chat.js"></script>
+<script src="js/views/financeiro.js"></script>
+<script src="js/views/proximos.js"></script>
+<script src="js/views/cadastro.js"></script>
+<script src="js/views/masks.js"></script>
+<script src="js/router.js"></script>
+<script src="js/footer.js"></script>
+</body>
+</html>

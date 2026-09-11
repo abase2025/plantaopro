@@ -1,0 +1,7 @@
+// PlantãoPro — script de configuração opcional do frontend
+// Cole esta linha antes de </head> no index.html informando a URL do backend:
+//
+// <script>window.API_BASE = 'https://plantaopro-api.onrender.com';</script>
+//
+// Sem ela: o app usa modo standalone (localStorage). Com ela: tenta o backend
+// e cai pro modo standalone se a API estiver offline.
