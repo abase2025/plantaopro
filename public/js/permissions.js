@@ -31,7 +31,7 @@
     admin: {
       label: 'Administrador',
       cor:   '#0d7a66',
-      rotas: ['login','dashboard','escalas','ofertas','horas','financeiro','equipe','chat','proximos','cadastro','calendario','admin'],
+      rotas: ['login','dashboard','escalas','ofertas','horas','financeiro','equipe','chat','proximos','cadastro','calendario','admin','notificacoes'],
       acoes: {
         verDashboardEquipe:  true,
         verEscalas:          true,
@@ -80,6 +80,7 @@
         enviarMensagem:      true,
         verCalendario:       true,
         verAdmin:            false,
+        gerenciarNotificacoes: true,
       },
       escopo: { verTodosPlantoes: false, verOutrosMedicos: false, verLembretesAdmin: false }
     },
@@ -87,7 +88,7 @@
     plantonista: {
       label: 'Plantonista',
       cor:   '#7c3aed',
-      rotas: ['login','dashboard','proximos','calendario'],  // ← SÓ leitura
+      rotas: ['login','dashboard','proximos','calendario','notificacoes'],  // ← SÓ leitura + opt-in
       acoes: {
         verDashboardEquipe:  false,
         verEscalas:          false,
@@ -108,6 +109,7 @@
         enviarMensagem:      false,
         verCalendario:       true,
         verAdmin:            false,
+        gerenciarNotificacoes: true,
       },
       escopo: { verTodosPlantoes: false, verOutrosMedicos: false, verLembretesAdmin: false }
     }

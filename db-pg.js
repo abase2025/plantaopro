@@ -28,7 +28,7 @@ const addDays = (iso, days) => { const d = new Date(iso + 'T12:00:00'); d.setDat
 const DataDir = path.join(__dirname, 'data');
 const DbFile  = path.join(DataDir, 'db.json');
 
-const MIGRATIONS = ['001_init.sql', '002_reminders.sql', '003_central.sql'];
+const MIGRATIONS = ['001_init.sql', '002_reminders.sql', '003_central.sql', '005_notifications.sql'];
 
 function ensureJSON() {
   if (!fs.existsSync(DataDir)) fs.mkdirSync(DataDir, { recursive: true });
@@ -39,6 +39,8 @@ function ensureJSON() {
       if (!db.plantoes_lembretes)  db.plantoes_lembretes = [];
       if (!db.plantoes_alertas)    db.plantoes_alertas = [];
       if (!db.plantoes_financeiro) db.plantoes_financeiro = [];
+      if (!db.whatsapp_optin)      db.whatsapp_optin = [];
+      if (!db.notifications_log)   db.notifications_log = [];
       // hidrata campos novos em plantões antigos já escritos
       db.plantoes = (db.plantoes || []).map(p => ({
         instituicao: p.instituicao || p.local || '',

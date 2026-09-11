@@ -20,6 +20,7 @@ const FRONT_ORIGINS = (process.env.CORS_ORIGINS || 'http://localhost:3000,http:/
 
 const { USING_PG, _pgPool, ensureJSON, persistJSON, runAllMigrations } = require('./db-pg');
 const reminders = require('./reminders');
+const notifications = require('./notifications');
 
 const pad   = (n) => String(n).padStart(2, '0');
 const toISO = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -665,8 +666,10 @@ app.post('/api/cron/reminders', async (req, res) => {
   if (expected && secret !== expected) return res.status(401).json({ erro: 'CRON_SECRET inválido.' });
   const force = req.query.force === '1' || req.body?.force === true;
   try {
-    const out = await reminders.tick({ force });
-    res.json(out);
+    // roda o tick kanônico (email + push) e em seguida o fan-out do WhatsApp
+    const tickOut = await reminders.tick({ force });
+    const waOut = await notifications.enqueueWhatsAppForAll({ force });
+    res.json({ ...tickOut, whatsapp: waOut });
   } catch (e) {
     console.error('[cron tick]', e);
     res.status(500).json({ erro: e.message });
@@ -676,13 +679,64 @@ app.get('/api/cron/status', authOnly, perfis('gestor'), async (req, res) => {
   res.json({
     canais: {
       email: process.env.RESEND_API_KEY ? 'resend' : (process.env.SMTP_HOST ? 'smtp' : 'stub'),
-      push: (process.env.VAPID_PUBLIC && process.env.VAPID_PRIVATE) ? 'web-push' : 'stub'
+      push: (process.env.VAPID_PUBLIC && process.env.VAPID_PRIVATE) ? 'web-push' : 'stub',
+      whatsapp: notifications.isConfigured() ? 'meta-cloud-api' : 'stub'
+    },
+    whatsappStub: notifications.isConfigured() ? null : '/tmp/plantaopro-whatsapp-dev.log',
+    templates: {
+      tpl24h:   process.env.WHATSAPP_TPL_24H    || 'plantaopro_lembrete_24h',
+      tpl3h:    process.env.WHATSAPP_TPL_3H     || 'plantaopro_lembrete_3h',
+      tplInicio: process.env.WHATSAPP_TPL_INICIO || 'plantaopro_lembrete_inicio'
     },
     intervalo: 'a cada hora + diário 08:00',
     desabilitarInterno: !!process.env.DISABLE_INTERNAL_CRON,
     endpointsExternos: { POST: '/api/cron/reminders?force=1 (header x-cron-secret)' },
     lembretesOffsets: reminders.REMINDER_OFFSETS
   });
+});
+
+/* ---------- NOTIFICAÇÕES (WhatsApp opt-in + recentes) ---------- */
+app.get('/api/notifications/status', authOnly, async (req, res) => {
+  res.json({
+    canais: {
+      email: process.env.RESEND_API_KEY ? 'resend' : (process.env.SMTP_HOST ? 'smtp' : 'stub'),
+      push: (process.env.VAPID_PUBLIC && process.env.VAPID_PRIVATE) ? 'web-push' : 'stub',
+      whatsapp: notifications.isConfigured() ? 'meta-cloud-api' : 'stub'
+    },
+    lembretesOffsets: reminders.REMINDER_OFFSETS,
+    whatsappStub: notifications.isConfigured() ? null : '/tmp/plantaopro-whatsapp-dev.log'
+  });
+});
+
+app.get('/api/notifications/preferences', authOnly, async (req, res) => {
+  const p = await notifications.getPreferences(req.user.id);
+  res.json({ preferencias: p });
+});
+app.post('/api/notifications/preferences', authOnly, async (req, res) => {
+  try {
+    const tel = await notifications.setPreferences(req.user.id, req.body || {});
+    res.status(201).json({ ok: true, telefone_e164: tel });
+  } catch (e) {
+    res.status(400).json({ erro: e.message });
+  }
+});
+app.get('/api/notifications/recentes', authOnly, async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+  const list = await notifications.listRecent(req.user.id, limit);
+  res.json({ notificacoes: list, unread: list.length });
+});
+// Botão admin "enviar teste" — dispara para o próprio admin (que precisa ter opt-in)
+app.post('/api/notifications/test', authOnly, perfis('gestor','medico_gestor'), async (req, res) => {
+  const prefs = await notifications.getPreferences(req.user.id);
+  if (!prefs) return res.status(400).json({ erro: 'Você ainda não fez opt-in. Salve seu telefone antes.' });
+  // Cria um lembrete artificial com offset 0 para satisfazer a UNIQUE e testar o send
+  const result = await notifications.sendWhatsApp(
+    prefs.telefone_e164,
+    process.env.WHATSAPP_TPL_INICIO || 'plantaopro_lembrete_inicio',
+    prefs.template_lang || 'pt_BR',
+    [req.user.nome, 'hospital de teste', new Date().toISOString().slice(0, 10)]
+  );
+  res.json(result);
 });
 
 /* ---------- Cron interno (a cada hora + diário 08:00) ---------- */
@@ -704,9 +758,10 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 
 /* ---------- Boot ---------- */
 (async () => {
-  // Garante schema completo (incluindo 002) antes de aceitar requests
+  // Garante schema completo (incluindo 002/003/004/005) antes de aceitar requests
+  notifications.init();
   if (USING_PG) {
-    try { await runAllMigrations(); }
+    try { await runAllMigrations(); await notifications.ensureSchema(); }
     catch (e) { console.error('[boot] migration falhou:', e.message); process.exit(1); }
   }
   app.listen(PORT, () => {

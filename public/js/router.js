@@ -14,6 +14,7 @@ const ROUTES = {
   '/chat':        { render: renderChat,        routeKey: 'chat' },
   '/proximos':    { render: renderProximos,    routeKey: 'proximos' },
   '/cadastro':    { render: renderCadastro,    routeKey: 'cadastro' },
+  '/notifications': { render: renderNotifications, routeKey: 'notificacoes' },
   '/calendario':  { render: renderProximos,    routeKey: 'calendario' },
   '/admin':       { render: renderDashboard,   routeKey: 'admin' }
 };
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { path: '/dashboard',  label: '🏠 Início',     routeKey: 'dashboard' },
   { path: '/cadastro',   label: '➕ Cadastrar',  routeKey: 'cadastro' },
   { path: '/proximos',   label: '📅 Próximos',   routeKey: 'proximos' },
+  { path: '/notifications', label: '🔔 Notificações', routeKey: 'notificacoes' },
   { path: '/calendario', label: '🗓️ Calendário', routeKey: 'calendario' },
   { path: '/escalas',    label: '📋 Escalas',    routeKey: 'escalas' },
   { path: '/ofertas',    label: '💼 Ofertas',    routeKey: 'ofertas' },
